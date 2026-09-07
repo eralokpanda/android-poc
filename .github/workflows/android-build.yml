@@ -172,6 +172,38 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           retention-days: 30
 
+      # ── Create GitHub Release with APK download ────────────────
+      - name: Get version info
+        id: version
+        run: |
+          VERSION_NAME=$(grep 'versionName' app/build.gradle.kts | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          VERSION_CODE=$(grep 'versionCode' app/build.gradle.kts | head -1 | sed 's/[^0-9]*//g')
+          BUILD_NUM=${{ github.run_number }}
+          TAG="v${VERSION_NAME}-build.${BUILD_NUM}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "name=Release ${VERSION_NAME} (Build ${BUILD_NUM})" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.name }}
+          body: |
+            ## AndroidPoc Release
+
+            **Version:** ${{ steps.version.outputs.tag }}
+            **Commit:** ${{ github.sha }}
+
+            ### Download
+            Download the APK file below and install it on your Android device.
+
+            > To install, you may need to enable "Install from unknown sources" in your device settings.
+          files: app/build/outputs/apk/release/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # ── Cleanup ────────────────────────────────────────────────
       - name: Remove keystore
         if: always()
