@@ -34,46 +34,38 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      # ── Cache Gradle distribution (avoids re-downloading ~130MB) ─
+      - name: Cache Gradle distribution
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/wrapper/dists
+          key: gradle-dist-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties') }}
+
       # ── Generate Gradle wrapper JAR if missing ─────────────────
       - name: Generate Gradle wrapper
         run: |
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
             echo "Wrapper JAR missing, generating..."
             GRADLE_VER=$(grep distributionUrl gradle/wrapper/gradle-wrapper.properties | sed 's/.*gradle-\(.*\)-bin.zip/\1/')
-            curl -sL "https://services.gradle.org/distributions/gradle-${GRADLE_VER}-bin.zip" -o /tmp/gradle.zip
-            unzip -q /tmp/gradle.zip -d /tmp/gradle
-            /tmp/gradle/gradle-${GRADLE_VER}/bin/gradle wrapper --gradle-version ${GRADLE_VER}
-            rm -rf /tmp/gradle /tmp/gradle.zip
+            # Check if distribution is already cached
+            if ls ~/.gradle/wrapper/dists/gradle-${GRADLE_VER}-bin/*/gradle-${GRADLE_VER}/bin/gradle 2>/dev/null; then
+              echo "Using cached Gradle distribution"
+              CACHED_GRADLE=$(ls ~/.gradle/wrapper/dists/gradle-${GRADLE_VER}-bin/*/gradle-${GRADLE_VER}/bin/gradle | head -1)
+              "$CACHED_GRADLE" wrapper --gradle-version ${GRADLE_VER}
+            else
+              echo "Downloading Gradle distribution..."
+              curl -sL "https://services.gradle.org/distributions/gradle-${GRADLE_VER}-bin.zip" -o /tmp/gradle.zip
+              unzip -q /tmp/gradle.zip -d /tmp/gradle
+              /tmp/gradle/gradle-${GRADLE_VER}/bin/gradle wrapper --gradle-version ${GRADLE_VER}
+              rm -rf /tmp/gradle /tmp/gradle.zip
+            fi
           fi
 
-      # ── Setup Gradle (handles caching automatically) ───────────
+      # ── Setup Gradle (caches dependencies + build cache) ───────
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-
-      # ── Android SDK cache ──────────────────────────────────────
-      - name: Cache Android SDK
-        uses: actions/cache@v4
-        with:
-          path: |
-            /usr/local/lib/android/sdk/build-tools
-            /usr/local/lib/android/sdk/platforms
-            /usr/local/lib/android/sdk/platform-tools
-          key: android-sdk-${{ hashFiles('app/build.gradle.kts') }}
-          restore-keys: |
-            android-sdk-
-
-      # ── Kotlin compiler cache ──────────────────────────────────
-      - name: Cache Kotlin compiler
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.kotlin
-            ~/.konan
-          key: kotlin-${{ hashFiles('**/*.gradle.kts') }}
-          restore-keys: |
-            kotlin-
 
       # ── Grant execute permission ───────────────────────────────
       - name: Grant execute permission for gradlew
@@ -127,39 +119,30 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      # ── Cache Gradle distribution ──────────────────────────────
+      - name: Cache Gradle distribution
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/wrapper/dists
+          key: gradle-dist-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties') }}
+
       - name: Generate Gradle wrapper
         run: |
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
             GRADLE_VER=$(grep distributionUrl gradle/wrapper/gradle-wrapper.properties | sed 's/.*gradle-\(.*\)-bin.zip/\1/')
-            curl -sL "https://services.gradle.org/distributions/gradle-${GRADLE_VER}-bin.zip" -o /tmp/gradle.zip
-            unzip -q /tmp/gradle.zip -d /tmp/gradle
-            /tmp/gradle/gradle-${GRADLE_VER}/bin/gradle wrapper --gradle-version ${GRADLE_VER}
-            rm -rf /tmp/gradle /tmp/gradle.zip
+            if ls ~/.gradle/wrapper/dists/gradle-${GRADLE_VER}-bin/*/gradle-${GRADLE_VER}/bin/gradle 2>/dev/null; then
+              CACHED_GRADLE=$(ls ~/.gradle/wrapper/dists/gradle-${GRADLE_VER}-bin/*/gradle-${GRADLE_VER}/bin/gradle | head -1)
+              "$CACHED_GRADLE" wrapper --gradle-version ${GRADLE_VER}
+            else
+              curl -sL "https://services.gradle.org/distributions/gradle-${GRADLE_VER}-bin.zip" -o /tmp/gradle.zip
+              unzip -q /tmp/gradle.zip -d /tmp/gradle
+              /tmp/gradle/gradle-${GRADLE_VER}/bin/gradle wrapper --gradle-version ${GRADLE_VER}
+              rm -rf /tmp/gradle /tmp/gradle.zip
+            fi
           fi
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-
-      - name: Cache Android SDK
-        uses: actions/cache@v4
-        with:
-          path: |
-            /usr/local/lib/android/sdk/build-tools
-            /usr/local/lib/android/sdk/platforms
-            /usr/local/lib/android/sdk/platform-tools
-          key: android-sdk-${{ hashFiles('app/build.gradle.kts') }}
-          restore-keys: |
-            android-sdk-
-
-      - name: Cache Kotlin compiler
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.kotlin
-            ~/.konan
-          key: kotlin-${{ hashFiles('**/*.gradle.kts') }}
-          restore-keys: |
-            kotlin-
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
