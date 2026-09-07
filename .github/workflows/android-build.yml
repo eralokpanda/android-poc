@@ -18,6 +18,9 @@ env:
     -Dorg.gradle.configureondemand=true
     -Dorg.gradle.jvmargs=-Xmx4g
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
