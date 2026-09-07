@@ -149,7 +149,11 @@ jobs:
 
       # ── Decode keystore from base64 secret ─────────────────────
       - name: Decode keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > ${{ github.workspace }}/release.keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | tr -d '\n\r ' | base64 -d > ${{ github.workspace }}/release.keystore
+          echo "Keystore size: $(wc -c < ${{ github.workspace }}/release.keystore) bytes"
+          # Verify it's a valid keystore
+          keytool -list -keystore ${{ github.workspace }}/release.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" -alias "${{ secrets.KEY_ALIAS }}" || echo "Keystore verification failed"
 
       # ── Build signed release APK ───────────────────────────────
       - name: Build release APK
